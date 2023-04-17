@@ -35,12 +35,12 @@ spec:
     spec:
       restartPolicy: {{ default .Values.global.restartPolicy .Values.master.restartPolicy }}
       {{- if .Values.master.affinity }}
-      affinity:
-        {{ tpl .Values.master.affinity . | nindent 8 | trim }}
+      affinity: 
+        {{- toYaml .Values.master.affinity | nindent 8 }}
       {{- end }}
       {{- if .Values.master.tolerations }}
       tolerations:
-        {{ tpl .Values.master.tolerations . | nindent 8 | trim }}
+        {{- toYaml .Values.master.tolerations | nindent 8 }}
       {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -52,8 +52,7 @@ spec:
       {{- end }}
       enableServiceLinks: false
       {{- if .Values.master.initContainers }}
-      initContainers:
-        {{ tpl .Values.master.initContainers . | nindent 8 | trim }}
+      initContainers: {{ toYaml .Values.master.initContainers | nindent 8 }}
       {{- end }}
       containers:
         - name: seaweedfs
@@ -89,7 +88,7 @@ spec:
           command:
             - "/bin/sh"
             - "-ec"
-            - | 
+            - |
               exec /usr/bin/weed \
               {{- if eq .Values.master.logs.type "hostPath" }}
               -logdir=/logs \
@@ -139,29 +138,10 @@ spec:
             - name : data-{{ .Release.Namespace }}
               mountPath: /data
             - name: seaweedfs-master-log-volume
-              mountPath: "/logs/"
-            {{- if .Values.global.enableSecurity }}
-            - name: security-config
-              readOnly: true
-              mountPath: /etc/seaweedfs/security.toml
-              subPath: security.toml
-            - name: ca-cert
-              readOnly: true
-              mountPath: /usr/local/share/ca-certificates/ca/
-            - name: master-cert
-              readOnly: true
-              mountPath: /usr/local/share/ca-certificates/master/
-            - name: volume-cert
-              readOnly: true
-              mountPath: /usr/local/share/ca-certificates/volume/
-            - name: filer-cert
-              readOnly: true
-              mountPath: /usr/local/share/ca-certificates/filer/
-            - name: client-cert
-              readOnly: true
-              mountPath: /usr/local/share/ca-certificates/client/
-            {{- end }}
-            {{ tpl .Values.master.extraVolumeMounts . | nindent 12 | trim }}
+              mountPath: "/logs/"            
+            {{- with .Values.master.extraVolumeMounts }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}                        
           ports:
             - containerPort: {{ .Values.master.port }}
               name: swfs-master
@@ -193,8 +173,13 @@ spec:
             timeoutSeconds: 10
           {{- if .Values.master.resources }}
           resources:
-            {{ tpl .Values.master.resources . | nindent 12 | trim }}
-          {{- end }}
+            requests:
+              cpu: {{ default .Values.master.resources.requests.cpu nil }}
+              memory: {{ default .Values.master.resources.requests.memory nil }}
+            limits:
+              cpu: {{ default .Values.master.resources.limits.cpu nil }}
+              memory: {{ default .Values.master.resources.limits.memory nil }}
+          {{- end }}          
       {{- $hostpath_exists := include "master.hostpath_exists" . -}}
       {{- if $hostpath_exists }}
       volumes:
@@ -230,11 +215,13 @@ spec:
           secret:
             secretName: {{ template "seaweedfs.name" . }}-client-cert
         {{- end }}
-        {{ tpl .Values.master.extraVolumes . | indent 8 | trim }}
-      {{- end }}
+        {{- with .Values.master.extraVolumes }}
+          {{- toYaml . | nindent  12 }}
+        {{- end }}
+      {{- end }}      
       {{- if .Values.master.nodeSelector }}
-      nodeSelector:
-        {{ tpl .Values.master.nodeSelector . | indent 8 | trim }}
+      nodeSelector:      
+        {{- toYaml .Values.master.nodeSelector | nindent  10 }}
       {{- end }}
   {{- $pvc_exists := include "volume.pvc_exists" . -}}
   {{- if $pvc_exists }}
@@ -259,5 +246,5 @@ spec:
           requests:
             storage: {{ .Values.master.logs.size }}
     {{- end }}
-  {{- end }}
+  {{- end }}      
 {{- end }}

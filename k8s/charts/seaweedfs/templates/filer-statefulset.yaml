@@ -35,12 +35,11 @@ spec:
     spec:
       restartPolicy: {{ default .Values.global.restartPolicy .Values.filer.restartPolicy }}
       {{- if .Values.filer.affinity }}
-      affinity:
-        {{ tpl .Values.filer.affinity . | nindent 8 | trim }}
+      affinity: {{ toYaml .Values.filer.affinity | nindent 8 }}
       {{- end }}
       {{- if .Values.filer.tolerations }}
       tolerations:
-        {{ tpl .Values.filer.tolerations . | nindent 8 | trim }}
+      {{ toYaml .Values.filer.tolerations . | nindent 2 }}
       {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -51,10 +50,10 @@ spec:
       {{- if .Values.filer.priorityClassName }}
       priorityClassName: {{ .Values.filer.priorityClassName | quote }}
       {{- end }}
-      enableServiceLinks: false
-      {{- if .Values.filer.initContainers }}
+      enableServiceLinks: false      
       initContainers:
-        {{ tpl .Values.filer.initContainers . | nindent 8 | trim }}
+      {{- with .Values.filer.initContainers }}
+        {{- toYaml .Values.filer.initContainers | nindent 8 }}
       {{- end }}
       containers:
         - name: seaweedfs
@@ -172,8 +171,8 @@ spec:
           volumeMounts:
             - name: seaweedfs-filer-log-volume
               mountPath: "/logs/"
-            - mountPath: /etc/sw
-              name: config-users
+            - name: config-users
+              mountPath: /etc/sw
               readOnly: true
             {{- if .Values.filer.enablePVC }}
             - name: data-filer
@@ -200,7 +199,9 @@ spec:
               readOnly: true
               mountPath: /usr/local/share/ca-certificates/client/
             {{- end }}
-            {{ tpl .Values.filer.extraVolumeMounts . | nindent 12 | trim }}
+            {{- if .Values.filer.extraVolumeMounts }}
+            {{- toYaml .Values.filer.extraVolumeMounts | nindent 12 }}
+            {{- end }}            
           ports:
             - containerPort: {{ .Values.filer.port }}
               name: swfs-filer
@@ -230,7 +231,12 @@ spec:
             timeoutSeconds: 10
           {{- if .Values.filer.resources }}
           resources:
-            {{ tpl .Values.filer.resources . | nindent 12 | trim }}
+            requests:
+              cpu: {{ default .Values.filer.resources.requests.cpu nil }}
+              memory: {{ default .Values.filer.resources.requests.memory nil }}
+            limits:
+              cpu: {{ default .Values.filer.resources.limits.cpu nil }}
+              memory: {{ default .Values.filer.resources.limits.memory nil }}
           {{- end }}
       volumes:
         {{- if eq .Values.filer.logs.type "hostPath" }}
@@ -272,10 +278,12 @@ spec:
           secret:
             secretName: {{ template "seaweedfs.name" . }}-client-cert
         {{- end }}
-        {{ tpl .Values.filer.extraVolumes . | indent 8 | trim }}
+        {{- if .Values.filer.extraVolumes }}
+        {{ toYaml .Values.filer.extraVolumes | indent 2 }}
+        {{- end }}
       {{- if .Values.filer.nodeSelector }}
       nodeSelector:
-        {{ tpl .Values.filer.nodeSelector . | indent 8 | trim }}
+      {{ toYaml .Values.filer.nodeSelector | indent 2 }}
       {{- end }}
   {{- if .Values.filer.enablePVC }}
   # DEPRECATION: Deprecate in favor of filer.data section below

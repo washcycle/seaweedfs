@@ -27,8 +27,7 @@ spec:
     spec:
       restartPolicy: {{ default .Values.global.restartPolicy .Values.s3.restartPolicy }}
       {{- if .Values.s3.tolerations }}
-      tolerations:
-        {{ tpl .Values.s3.tolerations . | nindent 8 | trim }}
+      tolerations: {{ toYaml .Values.s3.tolerations . | nindent 8 }}
       {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -40,8 +39,7 @@ spec:
       {{- end }}
       enableServiceLinks: false
       {{- if .Values.s3.initContainers }}
-      initContainers:
-        {{ tpl .Values.s3.initContainers . | nindent 8 | trim }}
+      initContainers: {{ toYaml .Values.s3.initContainers | nindent 8 }}
       {{- end }}
       containers:
         - name: seaweedfs
@@ -133,7 +131,9 @@ spec:
               readOnly: true
               mountPath: /usr/local/share/ca-certificates/client/
             {{- end }}
-            {{ tpl .Values.s3.extraVolumeMounts . | nindent 12 | trim }}
+            {{- if .Values.s3.extraVolumeMounts }}
+            {{- toYaml .Values.s3.extraVolumeMounts | indent 2 }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.s3.port }}
               name: swfs-s3
@@ -163,7 +163,12 @@ spec:
             timeoutSeconds: 10
           {{- if .Values.s3.resources }}
           resources:
-            {{ tpl .Values.s3.resources . | nindent 12 | trim }}
+            requests:
+              cpu: {{ default .Values.s3.resources.requests.cpu nil }}
+              memory: {{ default .Values.s3.resources.requests.memory nil }}
+            limits:
+              cpu: {{ default .Values.s3.resources.limits.cpu nil }}
+              memory: {{ default .Values.s3.resources.limits.memory nil }}
           {{- end }}
       volumes:
         - name: config-users
@@ -196,9 +201,14 @@ spec:
           secret:
             secretName: {{ template "seaweedfs.name" . }}-client-cert
         {{- end }}
-        {{ tpl .Values.s3.extraVolumes . | indent 8 | trim }}
-      {{- if .Values.s3.nodeSelector }}
-      nodeSelector:
-        {{ tpl .Values.s3.nodeSelector . | indent 8 | trim }}
+        {{- with .Values.s3.extraVolumes }}
+          {{- toYaml .Values.s3.extraVolumes | nindent 12 }}
+        {{- end }}
+      {{- if .Values.master.nodeSelector }}
+      nodeSelector:      
+        {{- toYaml .Values.master.nodeSelector | nindent  10 }}
+      {{- end }}
+      {{- if .Values.s3.affinity }}
+      affinity: {{ toYaml .Values.s3.affinity | nindent 8 }}
       {{- end }}
 {{- end }}
